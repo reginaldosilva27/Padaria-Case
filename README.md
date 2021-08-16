@@ -5,7 +5,7 @@ Iremos simular um caso de uso de uma padaria com centenas de filiais espalhadas 
 O que veremos nessa lab:
 
 - Gerar dados FAKE com Python
-- Ingestão dos dados gerados por cada filial (Dados no formato JSON)
+- Ingestão dos dados gerados por filial (Dados no formato JSON)
 - Ingestão será toda feita pelo Azure Event Hubs
 - Processar e extrair os dados streaming com o Azure Stream Analytics
 - Armazenar os dados processados no Azure Cosmos DB para consumo das APIS

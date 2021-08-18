@@ -1,6 +1,6 @@
-import json
-import asyncio
+import asyncio, requests, json, datetime
 from azure.eventhub.aio import EventHubProducerClient
+from dateutil.relativedelta import relativedelta
 from azure.eventhub import EventData
 from faker import Faker
 fake = Faker('pt_BR')
@@ -10,34 +10,62 @@ async def run():
     # Create a producer client to send messages to the event hub.
     # Specify a connection string to your event hubs namespace and
     # the event hub name.
-    producer = EventHubProducerClient.from_connection_string(
-        conn_str="Endpoint=sb://padaria-eventhubs.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=OW1DDFjQvnKNb81LzhcQxF9BRwotHPC73y09ffl+6BI=", eventhub_name="customer-topic")
+    producer = EventHubProducerClient.from_connection_string(conn_str="Endpoint=sb://padaria-eventhubs.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=OW1DDFjQvnKNb81LzhcQxF9BRwotHPC73y09ffl+6BI=", eventhub_name="customer-topic")
     async with producer:
         # Create a batch.
         event_data_batch = await producer.create_batch()
 
         # Add events to the batch.
-        for x in range(10):
+        for x in range(5):
+            if fake.simple_profile()["sex"] == 'F':
+                firstname = fake.first_name_female()
+                sex = 'F'
+                url = 'https://fakeface.rest/face/json?gender=female&minimum_age=999&maximum_age=999'
+            else:
+                firstname = fake.first_name_male()
+                sex = 'M'
+                url = 'https://fakeface.rest/face/json?gender=male&minimum_age=999&maximum_age=999'
+
+            lastname = fake.last_name()
+            middlename = fake.last_name()
+            domainemail = fake.free_email_domain()
+            username = firstname[0].lower().replace(' ', '') + lastname.lower().replace(' ', '')
+            email = firstname.lower().replace(' ', '') + lastname.lower().replace(' ', '') + '@' + domainemail
+            birthdate = fake.date_between(start_date='-90y', end_date='-10y')
+            age = relativedelta(datetime.datetime.now(), birthdate)
+            url = url.replace('999', str(age.years))
+            response = requests.get(url)
+            if response.status_code == 200:
+                imagelink = response.json()['image_url']
+            else:
+                imagelink = ""
+
+            if age.years >= 18:
+                job = fake.job()
+            else:
+                job = 'Estudante'
+
             Customer = {
                 "id": fake.hexify(text='^^^^-^^^^-^^^^-^^^^'),
                 "cpf": fake.cpf(),
                 "originBranchId": fake.random_number(3),
-                "name": fake.name(),
-                "loginname": "",
-                "email": "",
-                "birthdate": "",
-                "age": fake.random_number(2),
-                "career": "",
-                "phone": "",
-                "photo": "azure blob link",
+                "name": firstname + ' ' + middlename + ' ' + lastname,
+                "loginname": username,
+                "email": email,
+                "birthdate": birthdate.strftime('%d/%m/%Y'),
+                "age": age.years,
+                "job": fake.job(),
+                "phone": fake.phone_number(),
+                "sex": sex,
+                "photo": imagelink,
                 "addresses": [{
-                    "addressStreet": "",
-                    "addressNumber": "",
-                    "addressCity": "",
-                    "addressState": "",
-                    "addressCountry": "",
-                    "addressPostalCode": "",
-                    "addressComplement": "",
+                    "addressStreet": fake.street_name(),
+                    "addressNumber": fake.building_number(),
+                    "addressCity": fake.city(),
+                    "addressState": fake.state_abbr(),
+                    "addressCountry": fake.current_country(),
+                    "addressPostalCode": fake.postcode(),
+                    "addressComplement": fake.neighborhood(),
                     "isMain": True
                 }],
                 "socialMidia": {
@@ -46,25 +74,27 @@ async def run():
                     "linkeDin": "",
                     "twiter": ""
                 },
-                "createdDate": "",
+                "createdDate": datetime.datetime.now().strftime('%d/%m/%Y'),
                 "lastRecentsOrders": [{
                     "orderNumber": ""
                 }],
                 "summary": [{
-                    "totalOrders": 10,
-                    "totalVisits": 9,
-                    "averageTicket": 85.00,
-                    "lastOrderDate": "20210731",
-                    "lastFeedbackStatus": "Positive",
-                    "lastFeedbackMessage": "Pão estava ótimo e bem quentinho, atendimento super rápido"
+                    "totalOrders": 0,
+                    "totalVisits": 0,
+                    "averageTicket": 0,
+                    "lastOrderDate": 'null',
+                    "lastFeedbackStatus": 'null',
+                    "lastFeedbackMessage": 'null'
                 }],
                 "possiblePromotions": [{
                     "productId": "",
-                    "disacountPercent": 10
+                    "disacountPercent": 0
                 }]
             }
-            event_data_batch.add(EventData(json.dumps(Customer,indent=4)))
-            print(json.dumps(Customer,indent=4))
+
+            event_data_batch.add(EventData(json.dumps(Customer, indent=4)))
+            #print(json.dumps(Customer, indent=4))
+            print(x)
             # Send the batch of events to the event hub.
             await producer.send_batch(event_data_batch)
 
